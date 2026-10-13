@@ -3,4 +3,4 @@ allowBuilds:
   esbuild: true
 minimumReleaseAgeExclude:
   - adminforth
-  - '@adminforth/i18n@2.4.0'
+  - '@adminforth/i18n'
