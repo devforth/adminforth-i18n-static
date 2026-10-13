@@ -1,6 +1,6 @@
-import { I18nBase, PLURAL_SEPARATOR, SLAVIC_PLURAL_FORMS, SOURCE_LANGUAGE, requiresSlavicPlurals } from "@adminforth/i18n";
+import { I18nBase, PLURAL_SEPARATOR, SLAVIC_PLURAL_FORMS, SLAVIC_PLURAL_FORMS_HINT, SOURCE_LANGUAGE, requiresSlavicPlurals } from "@adminforth/i18n";
 import { afLogger } from "adminforth";
-import type { IAdminForth } from "adminforth";
+import type { AdminForthConfigMenuItem, IAdminForth } from "adminforth";
 import fs from "fs";
 import type { SimpleFile } from "vue-i18n-extract";
 import path from "path";
@@ -12,7 +12,11 @@ const SOURCE_FILE_RE = /\.(js|vue|ts)$/;
 const NODE_MODULES_DIR = 'node_modules';
 const TEMPLATE_LITERAL_QUOTE = '`';
 
-const SLAVIC_PLURAL_FORMS_HINT = 'zero | singular | 2-4 | 5+';
+// config texts are optional, missing ones are skipped
+function isText(text: string | undefined): text is string {
+  return Boolean(text);
+}
+
 // every plural rule picks from at least 2 forms, so a single form breaks rendering
 const MIN_RENDERABLE_PLURAL_FORMS = 2;
 
@@ -66,6 +70,8 @@ function findWrongPlurals(lang: string, messages: Record<string, string>): strin
 export default class I18nStaticPlugin extends I18nBase<PluginOptions> {
   pluginsScope: 'global' = 'global';
   translationsDir: string;
+  // parsed language files by path, re-read only when file changes: backend translates every menu item on each request
+  languageFilesCache = new Map<string, { mtimeMs: number, messages: Record<string, string> }>();
 
   constructor(options: PluginOptions) {
     super(options);
@@ -76,6 +82,9 @@ export default class I18nStaticPlugin extends I18nBase<PluginOptions> {
     super.modifyGlobalConfig(adminforth);
     this.validateLanguageFiles();
     this.injectLanguageSelectors(adminforth);
+
+    // backend strings (menu labels, etc.) are translated from the same language files, category is not used
+    this.installBackendTranslator(adminforth, async (msg, category, lang) => (await this.readLanguageFile(lang))?.[msg]);
   }
 
   // fails app start on broken language file instead of failing every frontend_messages request later, only warns about wrong plural forms
@@ -95,19 +104,24 @@ export default class I18nStaticPlugin extends I18nBase<PluginOptions> {
     return path.join(this.translationsDir, `${lang}.json`);
   }
 
+  // file changes are picked up on next read, so manual edits are visible without restart
   async readLanguageFile(lang: string): Promise<Record<string, string> | null> {
     const filePath = this.languageFilePath(lang);
     if (!fs.existsSync(filePath)) {
       return null;
     }
-    return parseLanguageFile(filePath, lang, await fs.promises.readFile(filePath, 'utf-8'));
+    const { mtimeMs } = await fs.promises.stat(filePath);
+    const cached = this.languageFilesCache.get(filePath);
+    if (cached?.mtimeMs === mtimeMs) {
+      return cached.messages;
+    }
+    const messages = parseLanguageFile(filePath, lang, await fs.promises.readFile(filePath, 'utf-8'));
+    this.languageFilesCache.set(filePath, { mtimeMs, messages });
+    return messages;
   }
 
-  // files are read on every request, so manual edits are picked up without restart
   async getCategoryTranslations(category: string, lang: string): Promise<Record<string, string>> {
-    const messages = await this.readLanguageFile(this.resolveLanguage(lang)) ?? {};
-    // empty value means "not translated yet", show original key instead
-    return Object.fromEntries(Object.entries(messages).map(([key, value]) => [key, value || key]));
+    return this.fallbackToOriginal(await this.readLanguageFile(this.resolveLanguage(lang)) ?? {});
   }
 
   /**
@@ -136,7 +150,7 @@ export default class I18nStaticPlugin extends I18nBase<PluginOptions> {
   }
 
   // collects `$t(...)` keys from SPA sources the same way as AdminForth bundler does, without building SPA
-  async extractKeys(): Promise<string[]> {
+  async sourceKeys(): Promise<string[]> {
     // imported lazily: on import vue-i18n-extract installs process-wide handlers which exit on any uncaught error
     const { extractI18NItemsFromVueFiles } = await import('vue-i18n-extract');
     const files = (await Promise.all(this.spaSourceDirs().map((dir) => this.readSourceFiles(dir)))).flat();
@@ -144,7 +158,43 @@ export default class I18nStaticPlugin extends I18nBase<PluginOptions> {
     const staticItems = extractI18NItemsFromVueFiles(files).filter((item) => !(
       item.path.includes('${') && item.previousCharacter === TEMPLATE_LITERAL_QUOTE && item.nextCharacter === TEMPLATE_LITERAL_QUOTE
     ));
-    return [...new Set(staticItems.map((item) => item.path))];
+    return staticItems.map((item) => item.path);
+  }
+
+  // all strings shown in admin: frontend `$t(...)` keys and config texts translated by backend
+  async extractKeys(): Promise<string[]> {
+    return [...new Set([...await this.sourceKeys(), ...this.menuKeys(), ...this.resourceKeys()])];
+  }
+
+  // menu and settings pages labels which AdminForth backend translates with adminforth.tr, labels set by functions are known only per request
+  menuKeys(): string[] {
+    const collect = (items: AdminForthConfigMenuItem[]): (string | undefined)[] => items.flatMap((item) => [
+      typeof item.label === 'string' ? item.label : undefined,
+      item.badgeTooltip,
+      ...collect(item.children ?? []),
+    ]);
+    const settingsPages = this.adminforth.config.auth!.userMenuSettingsPages ?? [];
+    return [...collect(this.adminforth.config.menu), ...settingsPages.map((page) => page.pageLabel)].filter(isText);
+  }
+
+  // resource texts which AdminForth backend translates with adminforth.tr: labels, column headers, enums, validation messages,
+  // form notes, bulk actions and field groups
+  resourceKeys(): string[] {
+    const keys: (string | undefined)[] = [];
+    for (const resource of this.adminforth.config.resources) {
+      keys.push(resource.label);
+      for (const column of resource.columns) {
+        keys.push(column.label, column.editingNote?.create, column.editingNote?.edit, column.foreignResource?.unsetLabel);
+        keys.push(...(column.enum ?? []).map((item) => item.label));
+        keys.push(...(column.validation ?? []).map((rule) => rule.message));
+      }
+      for (const action of resource.options.bulkActions ?? []) {
+        keys.push(action.label);
+        keys.push(...(typeof action.confirm === 'string' ? [action.confirm] : Object.values(action.confirm ?? {})));
+      }
+      keys.push(...(resource.options.fieldGroups ?? []).map((group) => group.groupName));
+    }
+    return keys.filter(isText);
   }
 
   /**
@@ -161,7 +211,8 @@ export default class I18nStaticPlugin extends I18nBase<PluginOptions> {
     for (const lang of this.options.supportedLanguages) {
       const existing = await this.readLanguageFile(lang);
       const created = !existing;
-      const messages = existing ?? {};
+      // copy: read result is cached, it must not get keys before the file is written
+      const messages = { ...existing };
 
       const added = keys.filter((key) => !Object.hasOwn(messages, key));
       for (const key of added) {
