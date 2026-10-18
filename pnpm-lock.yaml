@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@adminforth/i18n':
-        specifier: ^2.5.0
-        version: 2.5.0(adminforth@3.34.0(@types/node@26.6.5)(express@5.3.0(supports-color@7.2.0)))
+        specifier: ^3.0.0
+        version: 3.0.0(adminforth@4.0.0(@types/node@26.6.5)(express@5.3.0(supports-color@7.2.0)))
       tsx:
         specifier: ^4.23.15
         version: 4.23.15
@@ -22,8 +22,8 @@ importers:
         specifier: latest
         version: 26.6.5
       adminforth:
-        specifier: ^3.34.0
-        version: 3.34.0(@types/node@26.6.5)(express@5.3.0(supports-color@7.2.0))
+        specifier: ^4.0.0
+        version: 4.0.0(@types/node@26.6.5)(express@5.3.0(supports-color@7.2.0))
       semantic-release:
         specifier: ^24.2.1
         version: 24.2.9(supports-color@7.2.0)(typescript@5.9.3)
@@ -36,10 +36,10 @@ importers:
 
 packages:
 
-  '@adminforth/i18n@2.5.0':
-    resolution: {integrity: sha512-dH2HsTdv9TF8NO/Zbyf8CYGPmESp35mA1m/q9Oo7nhIbsGppYH6shhsNDgGBjHJqqHxfGSrB92VeHwBGrIXEIw==}
+  '@adminforth/i18n@3.0.0':
+    resolution: {integrity: sha512-jqlK4GzgHKNGtn3WWN8bJzA/uMgwjy27xvWTcHPDyoDVDBrTKff5BCceuPYkFYfm7kG4zBq1evs2Ijpgt5G+1A==}
     peerDependencies:
-      adminforth: ^3.8.2
+      adminforth: ^4.0.0
 
   '@aws-sdk/client-ses@3.1149.0':
     resolution: {integrity: sha512-SgqZO/azgITEPrUvcEzGYwQF257P3GPmGL26TsfdjF06qj7YZQwmyi4pTrywp7mCyBPsCpAaPKJSOZVQbV4Zog==}
@@ -640,8 +640,8 @@ packages:
     resolution: {integrity: sha512-5cvg6CtKwfgdmVqY1WIiXKc3Q1bkRqGLi+2W/6ao+6Y7gu/RCwRuAhGEzh5B4KlszSuTLgZYuqFqo5bImjNKng==}
     engines: {node: '>= 0.6'}
 
-  adminforth@3.34.0:
-    resolution: {integrity: sha512-mi2Dkx68aC8zPxV4Si3yQzbVXyeNi9h2UthCq69h4XZL5Je7r3jM0K553QQX7JEGlMzTZCU5spvnfC1E/MYemg==}
+  adminforth@4.0.0:
+    resolution: {integrity: sha512-9AzcRc3+3P/Epc0L5AlQApUTGTwRpBKxw+HmyngAhf3GYHm402V3hXlfo11X0E55FOsJOzIKaIMk17hvwGV7PQ==}
     engines: {node: ^22.12.0 || ^24.0.0 || ^26.0.0}
     hasBin: true
     peerDependencies:
@@ -2597,11 +2597,11 @@ packages:
 
 snapshots:
 
-  '@adminforth/i18n@2.5.0(adminforth@3.34.0(@types/node@26.6.5)(express@5.3.0(supports-color@7.2.0)))':
+  '@adminforth/i18n@3.0.0(adminforth@4.0.0(@types/node@26.6.5)(express@5.3.0(supports-color@7.2.0)))':
     dependencies:
       '@aws-sdk/client-ses': 3.1149.0
       '@sapphire/async-queue': 1.5.5
-      adminforth: 3.34.0(@types/node@26.6.5)(express@5.3.0(supports-color@7.2.0))
+      adminforth: 4.0.0(@types/node@26.6.5)(express@5.3.0(supports-color@7.2.0))
       bcp-47: 2.1.1
       chokidar: 4.0.3
       country-flag-svg: 1.0.19
@@ -3263,7 +3263,7 @@ snapshots:
       mime-types: 3.0.2
       negotiator: 1.1.0
 
-  adminforth@3.34.0(@types/node@26.6.5)(express@5.3.0(supports-color@7.2.0)):
+  adminforth@4.0.0(@types/node@26.6.5)(express@5.3.0(supports-color@7.2.0)):
     dependencies:
       '@babel/parser': 7.29.9
       '@faker-js/faker': 9.9.0
