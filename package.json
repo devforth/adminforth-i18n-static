@@ -39,7 +39,7 @@
   "license": "MIT",
   "description": "Static translations plugin for AdminForth",
   "peerDependencies": {
-    "adminforth": "^4.0.0"
+    "adminforth": "^4.7.3"
   },
   "devDependencies": {
     "@types/node": "latest",
